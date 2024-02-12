@@ -15,4 +15,4 @@ In the data aggregation step, I pulled out relevant 2016 data and merged it all 
 
 Note: 2016Mort_models_tests.html and 2016Mort_models_tests.Rmd are currently in progress.
 
-The .html files may be openned in a browser window and display R code, code output, and descussions of the output/results. The .Rmd files are the R code files.
+The .html files may be downloaded and openned in a browser window; they display R code, code output, and discussions of the output/results. The .Rmd files are the R code files.
