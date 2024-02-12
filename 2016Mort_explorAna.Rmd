@@ -1,0 +1,311 @@
+---
+title: 'Mortality Analysis for 2016: Exploratory Analysis'
+author: "Tamara Cooper"
+date: "January 2024"
+font-family: 'Helvetica'
+output: 
+  html_document: 
+    df_print: paged   # formats the page to dynamic display of output such as data tables
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<style type="text/css">
+.main-container {
+  max-width: 85% !important;
+  margin: auto;
+}
+/* code to make display width full page and dynamic */
+</style>
+
+```{r, eval=FALSE, echo=FALSE}
+# Possible needed packages, don't display this code
+# general use packages
+install.packages("rmarkdown");   
+install.packages("tidyverse");
+install.packages("ggplot2");
+install.packages("GGally");
+install.packages("RColorBrewer");
+install.packages("kableExtra");
+install.packages("papeR");
+install.packages("epitab");
+install.packages("gplots");
+install.packages("vtable");
+install.packages("corrplot")
+install.packages("stargazer")
+## spatial regression analysis packages
+install.packages('spdep');
+install.packages('spatialreg');
+install.packages('rgdal');
+install.packages('rgeos');
+install.packages('sfdep');
+install.packages('sp');
+install.packages("foreign");
+install.packages('haven');
+```
+
+```{r, include=FALSE}
+# Libraries needed, don't display this code
+library(tidyverse)
+library(ggplot2)
+library(GGally)
+library(RColorBrewer)
+library(MASS)
+library(knitr)
+library(kableExtra)
+library(RColorBrewer)
+library("papeR")
+library(epitab)
+library("gplots")
+myPalette <- brewer.pal(8, "Set2"); 
+library(dplyr)
+library(readxl)
+library(stringr)
+library(vtable)
+library(corrplot)
+library(stargazer)
+### Spatial analysis libraries
+library(spdep)
+library(spatialreg)
+library(rgdal)
+library(rgeos)
+library(sf)
+library(sfdep)
+library(sp)
+library(foreign)
+
+# Change the presentation of decimal numbers to 4 and avoid scientific notation
+options(prompt="R> ", digits=4, scipen=7)
+```
+
+</br>
+
+### Purpose and Goals
+The purpose of this code is to perform exploratory data analysis on the mortality data in the nc2016.csv data set that I prepared in the data aggregation project. (Please see the 2016Mort_dataAggr.html file to view the data aggregation project.)  
+My goals for this project are to check linearity, normality, analyze the distribution of the data, discover any correlations and check for collinearity and multicollinearity. 
+
+</br>
+
+#### How to read this document
+Before we begin the analyses here is a brief explanation of the layout of this document and what each of the parts are.  
+This page displays code, output, and discussions about the output. The layout is as follows:  
+1. Code is displayed in gray "code boxes"  
+```{r, fig.show='hide'}
+# This is a code box
+x <- c(1,3,2,4,8,4,7)
+y <- c(9,3,1,5,7,2,6)
+plot(x, y, col='#04918a', main="Output of code", type = "p", pch = 19)
+```
+2. Output of the code  
+```{r, echo=FALSE, fig.height=3, fig.width=3}
+x <- c(1,3,2,4,8,4,7)
+y <- c(9,3,1,5,7,2,6)
+plot(x, y, col='#04918a', main=" This is the output of the code", type = "p", pch = 19, cex.main = 1)
+```
+3. Discussion about results/findings  
+
+</br>
+
+
+### Bring in the data set
+```{r}
+nc2016 <- read.csv("/Users/tamara/Documents/DataProjects/Mortality/nc2016.csv")
+nc2016
+```
+
+</br>
+
+### Descriptive statistics for a few variables of interest
+```{css, echo=FALSE}
+table, td, th{
+border: none;
+padding-left: 2em;
+padding-right: 2em;
+margin-left: none;
+margin-right: auto;
+margin-top: 1em;
+margin-bottom: 1em;
+}
+
+table, caption{
+font-size: 22px;
+color: #2C2C2C;
+}
+table, td{
+font-size: 16px
+}
+/* code for formatting the following table */
+```
+
+```{r, warning=FALSE, results='asis'}
+stargazer(nc2016, type = 'html',
+          keep = c("mentUnhDays", "perAccToExer", "perExcDrink", "Unemploy", "perUnemploy", "perInsSleep", "foodEnvIndx", "chlamyd", "perChlamyd", "tBirthRate", "violenCrime", "vioCrimeRate", "ageAdjRate"),
+          covariate.labels = c("Mentally Unhealthy Days", "Access to exercise opportunities", "Excessive drinking", "Unemployment", "Unemployment Rate", "Percent Insufficient Sleep", "Food environment index", "Chlamydia Cases", "Chlamydia Rate", "Teen Birth Rate", "Violent Crimes", "Violent Crime Rate", "Aged Adjusted Mortality Rate"),
+          title = "Descriptive Statistics")
+```
+
+</br>
+
+### Histograms and Boxplots
+```{r, fig.width=10, fig.height=4.5}
+par(mfrow=c(1,2))
+hist(nc2016$ageAdjRate, main = "Age Adjusted Mortality Rate", xlab = "Rate", col = "purple")
+
+boxplot(nc2016$ageAdjRate, horizontal = TRUE, main = "Age Adjusted Mortality Rate", xlab = "Rate", col = "purple")
+```
+
+</br>
+We can see from the above histogram and boxplot that the Age Adjusted Mortality Rate variable is distributed close to normally and so it will be fine as it is as a dependent (response) variable.  
+</br>
+
+```{r, fig.width=10, fig.height=7}
+par(mfrow=c(2,2))
+hist(nc2016$mentUnhDays, main = "Mentally Unhealthy Days", xlab = "Days", col = "purple")
+hist(nc2016$perInsSleep, main = "Percent Insufficient Sleep", xlab = "Percent with Insufficient Sleep", col = "purple")
+
+boxplot(nc2016$mentUnhDays, horizontal = TRUE, main = "Mentally Unhealthy Days", xlab = "Days", col = "purple")
+boxplot(nc2016$perInsSleep, horizontal = TRUE, main = "Percent Insufficient Sleep", xlab = "Percent with Insufficient Sleep", col = "purple")
+```
+
+</br>
+Both the above variables appear to be normally distributed, however Mentally Unhealthy Days does have a couple outliers to consider.  
+</br>
+
+```{r, fig.width=10, fig.height=8}
+par(mfrow=c(2,2))
+hist(nc2016$perAccToExer, main = "Access to Exercise Opportunities", xlab = "Percent with access", col = "purple")
+hist(nc2016$perExcDrink, main = "Excessive Drinking", xlab = "Percent excessive drinking", col = "purple")
+
+boxplot(nc2016$perAccToExer, horizontal = TRUE, main = "Access to Exercise Opportunities", xlab = "Percent with access", col = "purple")
+boxplot(nc2016$perExcDrink, horizontal = TRUE, main = "Excessive Drinking", xlab = "Percent excessive drinking", col = "purple")
+```
+
+</br>
+Access to Exercise Opportunities is slightly skewed left while Excessive Drinking is skewed right with an outlier.  
+</br>
+
+```{r, fig.width=10, fig.height=7}
+par(mfrow=c(2,2))
+hist(nc2016$foodEnvIndx, main = "Food Environment Index", xlab = "Index", col = "purple")
+hist(nc2016$tBirthRate, main = "Teen Birth Rate", xlab = "Rate", col = "purple")
+
+boxplot(nc2016$foodEnvIndx, horizontal = TRUE, main = "Food Environment Index", xlab = "Index", col = "purple")
+boxplot(nc2016$tBirthRate, horizontal = TRUE, main = "Teen Birth Rate", xlab = "Rate", col = "purple")
+```
+
+</br>
+Food Environment Index is skewed left and Teen Birth Rate is mostly normally distributed.  
+</br>
+
+```{r, fig.width=10, fig.height=8}
+par(mfrow=c(2,2))
+hist(nc2016$violenCrime, main = "Violent Crimes", xlab = "Number of violent crimes", col = "purple")
+hist(nc2016$vioCrimeRate, main = "Violent Crime Rate", xlab = "Rate", col = "purple")
+
+boxplot(nc2016$violenCrime, horizontal = TRUE, main = "Violent Crimes", xlab = "Number of violent crimes", col = "purple")
+boxplot(nc2016$vioCrimeRate, horizontal = TRUE, main = "Violent Crime Rate", xlab = "Rate", col = "purple")
+```
+
+</br>
+Both of these variables are skewed right but the Violent Crime Rate is not as strongly skewed. I will include Violent Crime Rate in my analyses going forward but not Violent Crimes.  
+</br>
+
+```{r, fig.width=10, fig.height=7}
+par(mfrow=c(2,2))
+hist(nc2016$chlamyd, main = "Chlamydia Cases", xlab = "Number of violent crimes", col = "purple")
+hist(nc2016$perChlamyd, main = "Chlamydia Rate", xlab = "Percent with STI", col = "purple")
+
+boxplot(nc2016$chlamyd, horizontal = TRUE, main = "Chlamydia Cases", xlab = "Number of violent crimes", col = "purple")
+boxplot(nc2016$perChlamyd, horizontal = TRUE, main = "Chlamydia Rate", xlab = "Percent with STI", col = "purple")
+```
+
+</br>
+Again both of these variables are skewed right but the Chlamydia Rate is not as strongly skewed. I will include Chlamydia Rate in my analyses going forward but not Chlamydia Cases.  
+</br>
+
+```{r, fig.width=10, fig.height=7}
+par(mfrow=c(2,2))
+hist(nc2016$Unemploy, main = "Number Unemployed", xlab = "Rate", col = "purple")
+hist(nc2016$perUnemploy, main = "Percent Unemployed", xlab = "Rate", col = "purple")
+
+boxplot(nc2016$Unemploy, horizontal = TRUE, main = "Number Unemployed", xlab = "Rate", col = "purple")
+boxplot(nc2016$perUnemploy, horizontal = TRUE, main = "Percent Unemployed", xlab = "Rate", col = "purple")
+```
+
+</br>
+And here too we see that both variables are right skewed but the Percent Unemployed is less skewed so I will consider only the Percent Unemployed in my future analyses.  
+</br>
+
+### Checks for Linear Relationship
+```{r, fig.width=15, fig.height=10}
+feats <- c("ageAdjRate", "mentUnhDays", "perInsSleep", "perAccToExer", "perExcDrink", "tBirthRate", "vioCrimeRate", "perChlamyd", "perUnemploy")
+pairs(nc2016[ ,feats], col = "purple")
+```
+
+</br>
+Displayed above is a matrix of scatterplots between the variables in which I am interested. When looking at ageAdjRate we see an increasing linear trend with a majority of the covariates. ageAdjRate and perAccToExer appears to have little to no trend, possibly a slight negative linear trend. And ageAdjRate and perExcDrink has a negative linear trend. 
+There does not appear to be a strong correlation between ageAdjRate and the covariates except for tBirthRate which appears to be moderately correlated.  
+</br>
+
+### Checks for Multicollinearity
+```{r, fig.width=13, fig.height=8}
+m_noNA <- nc2016 %>% mutate_if(is.numeric, ~replace(., is.na(.), 0))
+feats <- c("ageAdjRate", "mentUnhDays", "perAccToExer", "perExcDrink", "tBirthRate", "vioCrimeRate", "perInsSleep", "perChlamyd", "perUnemploy")
+corr <- cor(m_noNA[ , feats])
+corrplot(corr, type = "upper", tl.cex = 1.15, tl.col = "black")
+```
+
+</br>
+In the above correlation plot/heatmap we see that tBirthRate has the strongest positive correlation with ageAdjRate (~0.6) and perExcDrink has the strongest negative correlation with ageAdjRate (~-0.4). We do not see any highly correlated covariates (correlation > 0.9).  
+</br>
+
+```{r}
+m_noNA <- nc2016 %>% mutate_if(is.numeric, ~replace(., is.na(.), 0))
+feats <- c("ageAdjRate", "mentUnhDays", "perAccToExer", "perExcDrink", "tBirthRate", "vioCrimeRate", "perInsSleep", "perChlamyd", "perUnemploy")
+corr <- cor(m_noNA[ , feats])
+upper <- corr
+upper[upper.tri(corr)] <- ""
+upper <- as.data.frame(upper)
+upper
+```
+
+</br>
+In the above table we can see the numerical correlation value of the covariates. We observe that all the values are less than 0.9 and therefore may conclude that there is no collinearity or multicollinearity.  
+</br>
+
+#### Another view using ggpairs function from the GGally package
+```{r, fig.width=15, fig.height=10, warning=FALSE}
+ggpairs(nc2016[ ,feats],
+        upper = list(continuous = wrap(ggally_cor, stars = F, size = 5)),
+        lower = list(continuous = wrap(ggally_points, col='#005F61')),
+        diag = list(continuous = wrap(ggally_densityDiag, col = '#6600DB')))
+```
+
+</br>
+In this view we see the scatterplots for ageAdjRate along the first column with the associated correlation coefficients along the first/top row. Along the diagonal are the density curves of each of the variables which displays the distribution of the variables in the data set.
+
+</br>
+
+#### Next steps
+I will continue my analysis with some statistical modeling and tests in the file 2016Mort_models_tests.html.  
+
+</br>
+</br>
+</br>
+</br>
+</br>
+</br>
+</br>
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,373 @@
+---
+title: "Mortality Analysis for 2016: Data aggregation"
+author: "Tamara Cooper"
+date: "January 2024"
+output: 
+  html_document: 
+    df_print: paged   # formats the page to dynamic display of output such as data tables
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<style type="text/css">
+.main-container {
+  max-width: 85% !important;
+  margin: auto;
+}
+/* code to make display width full page and dynamic */
+</style>
+
+```{r, eval=FALSE, echo=FALSE}
+# Possible needed packages, don't display this code
+# general use packages
+install.packages("rmarkdown");   
+install.packages("tidyverse");
+install.packages("ggplot2");
+install.packages("RColorBrewer");
+install.packages("kableExtra");
+install.packages("papeR");
+install.packages("epitab");
+install.packages("gplots");
+## spatial regression analysis packages
+install.packages('spdep');
+install.packages('spatialreg');
+install.packages('rgdal');
+install.packages('rgeos');
+install.packages('sfdep');
+install.packages('sp');
+install.packages("foreign");
+install.packages('haven');
+```
+
+```{r, include=FALSE}
+# Libraries needed, don't display this code
+library(tidyverse)
+library(ggplot2)
+library(RColorBrewer)
+library(MASS)
+library(knitr)
+library(kableExtra)
+library(RColorBrewer)
+library("papeR")
+library(epitab)
+library("gplots")
+myPalette <- brewer.pal(8, "Set2"); 
+library(dplyr)
+library(readxl)
+library(stringr)
+### Spatial analysis libraries
+library(spdep)
+library(spatialreg)
+library(rgdal)
+library(rgeos)
+library(sf)
+library(sfdep)
+library(sp)
+library(foreign)
+
+# Change the presentation of decimal numbers to 4 and avoid scientific notation
+options(prompt="R> ", digits=4, scipen=7)
+```
+
+</br>
+
+### Purpose and Goals
+The purpose of this code is to collect mortality data from the CDC Wonder database and merge it with data collected from the Robert Wood Johnson Foundation in order to perform analyses of various social data against mortality in the state of North Carolina subdivided by counties.  
+Once this data is cleaned and merged by the following code it will be downloaded as a single .csv file that I may use for my analyses.  
+
+##### How to read this document
+Before we begin the aggregation here is a brief explanation of the layout of this document and what each of the parts are.  
+This page displays code, output, and discussions about the output. The layout is as follows:  
+1. Code is displayed in gray "code boxes"  
+```{r, fig.show='hide'}
+# This is a code box
+x <- c(1,3,2,4,8,4,7)
+y <- c(9,3,1,5,7,2,6)
+plot(x, y, col='#04918a', main="Output of code", type = "p", pch = 19)
+```
+2. Output of the code  
+```{r, echo=FALSE, fig.height=3, fig.width=3}
+x <- c(1,3,2,4,8,4,7)
+y <- c(9,3,1,5,7,2,6)
+plot(x, y, col='#04918a', main=" This is the output of the code", type = "p", pch = 19, cex.main = 1)
+```
+3. Discussion about results/findings  
+
+</br>
+
+### CDC Wonder Data
+#### Bring in CDC Wonder Mortality data
+Data collected via: Centers for Disease Control and Prevention, National Center for Health Statistics. National Vital Statistics System, Mortality: Compressed Mortality File 1999-2016 on CDC WONDER Online Database, released June 2017. Data are from the Compressed Mortality File 1999-2016 Series 20 No. 2U, 2016, as compiled from data provided by the 57 vital statistics jurisdictions through the Vital Statistics Cooperative Program. Accessed at http://wonder.cdc.gov/cmf-icd10.html on Jan 12, 2024 1:44:22 PM.  
+```{r}
+cdcMort_dat <- data.table::fread("/Users/tamara/Documents/DataProjects/Mortality/CompressedMortality2016.txt", drop = 1)
+cdcMort_dat
+dim(cdcMort_dat)
+```
+
+</br>
+Read in the text file minus the first column, <code style="white-space: nowrap">drop = 1</code>, because it is empty. The dim(.) function shows the dimension of the data set which has 3,148 rows and 6 columns.  
+</br>
+
+##### Separate County column into county and state columns
+```{r, warning=FALSE}
+mort_dat <- cdcMort_dat %>% separate(County, c("county", "state"), ", ")
+head(mort_dat, 5)
+```
+</br>
+I separated the county and state abbreviation into two columns to make it easier to pull out only the North Carolina data. I will discuss other methods to pull out the NC data after the next code chunk.  
+</br>
+
+##### Pull out only NC
+```{r}
+mort_NC <- mort_dat[mort_dat$state == "NC", ]
+head(mort_NC, 5)
+dim(mort_NC)
+```
+</br>
+Another way I could have pulled out only NC data would have been to use the County Code and called all values >= 37000 and < 38000 since NC's state code is 37 which are the first two digits of the five digit county code. I could have achieved this by  
+<code style="white-space: nowrap">mort_NC <- mort_dat[mort_dat&#36;'County Code' >= 37000 & mort_dat&#36;'County Code' < 38000, ]</code>,  
+this method may be more efficient since I would not have had to perform the column split but I had other reasons for wanting to split the column.  
+This new data set has 101 rows and 7 columns. Note that NC only has 100 counties and there is a row of NA values. I will be able to remove the row of NA's later so I'm just going to ignore it for now. This data is cleaned as much as I want and I'll move on to the RWJ data.  
+</br>
+
+### RWJ County Health Rankings & Roadmaps data
+#### Bring in RWJ data
+Data collected via: Robert Wood Johnson Foundation, County Health Rankings & Roadmaps - https://www.countyhealthrankings.org/explore-health-rankings/rankings-data-documentation/national-data-documentation-2010-2019
+(Note: these data where collected from various different sources and presented in the County Health Rankings & Roadmaps spreadsheets. For more information on exact sources, download the .xls files presented in the following code.)
+```{r, message=FALSE}
+# 2018 spreadsheets
+rwj2018_rmd <- read_excel("/Users/tamara/Documents/DataProjects/Mortality/2018 County Health Rankings Data - v2.xls", sheet = "Ranked Measure Data")       # only the Ranked Measure Data sheet
+rwj2018_amd <- read_excel("/Users/tamara/Documents/DataProjects/Mortality/2018 County Health Rankings Data - v2.xls", sheet = "Additional Measure Data")   # only the Additional Measure Data sheet
+head(rwj2018_rmd, 10)
+head(rwj2018_amd, 10)
+
+# 2019 spreedsheet
+rwj2019_rmd <- read_excel("/Users/tamara/Documents/DataProjects/Mortality/2018 County Health Rankings Data - v2.xls", sheet = "Ranked Measure Data")       # only the Ranked Measure Data sheet
+head(rwj2019_rmd, 10)
+```
+</br>
+I pulled in multiple data sets in order to find 2016 data for the variables of interest.  
+</br>
+
+##### Grab needed columns
+```{r}
+rwj18_rmd <- rwj2018_rmd[ , c(1:3, 19, 45, 47, 60, 113:115)]
+head(rwj18_rmd, 5)
+
+rwj18_amd <- rwj2018_amd[ , c(1:3, 47, 78, 81, 83, 85, 87, 89, 91)]
+head(rwj18_amd, 5)
+
+rwj19_rmd <- rwj2019_rmd[ , c(1:3, 19, 39, 47, 57:58, 60, 64:66, 137:138)]
+head(rwj19_rmd, 5)
+```
+</br>
+I'm going to look at whether any of the following variables have any associations with mortality:  
+</br>
+Poor mental health days  
+Access to exercise opportunities  
+Food environment index - Index of factors that contribute to a healthy food environment, 0 (worst) to 10 (best)   
+Excessive drinking  
+Unemployment  
+Sexually transmitted infections - this data is presented as Chlamydia cases only which is not necessarily a disease associated with many deaths but it is not impossible so I'll keep it  
+Teen births - this variable is also broken down into a few races/ethnicity, I may want to dig deeper with the broken down data  
+Violent crime  
+Insufficient sleep  
+
+</br>
+I'm also keeping some demographics data in case they appear to be relevant in the analysis. Please note that all these variables are quantitative.  
+You may notice that the RWJ data includes a "Premature age-adjusted mortality" rate that I could use instead of pulling mortality rate separately from CDC Wonder, but I'm only interested in the year 2016. The RWJ data spans multiple years so is not actually what I need.  
+</br>
+
+##### Rename columns
+```{r}
+colnames(rwj18_rmd)[c(1:10)] = c("FIPS", "state", "county", "mentUnhDays", "perAccToExer", "perExcDrink", "tBirthRate", "Unemploy", "laborForce", "perUnemploy")
+head(rwj18_rmd, 3)
+
+colnames(rwj18_amd)[c(1:11)] = c("FIPS", "state", "county", "perInsSleep", "population", "black", "amerIndAlas", "asian", "natHawPacIs", "hispanic", "nonHisWht")
+head(rwj18_amd, 3)
+
+colnames(rwj19_rmd)[c(1:14)] = c("FIPS", "state", "county", "mentUnhDays", "foodEnvIndx", "perExcDrink", "chlamyd", "perChlamyd", "tBirthRate", "tBirthRBlk", "tBirthRHis", "tBirthRWht", "violenCrime", "vioCrimeRate")
+head(rwj19_rmd, 3)
+```
+
+</br>
+
+##### Join RWJ data sets
+```{r}
+df_list <- list(rwj18_rmd, rwj18_amd, rwj19_rmd)   # put the dataframes in a list
+
+rwj_2016 <- df_list %>% reduce(right_join, df_List, by = c("FIPS", "state", "county"))   # perform right join on all three dataframes
+head(rwj_2016, 5)
+```
+
+</br>
+I performed a right join because I want all the data for which FIPS, state, and county are equal in the three data sets.  
+</br>
+
+##### Pull out only North Carolina data
+```{r}
+rwjNC_2016 <- rwj_2016[rwj_2016$state == "North Carolina", ]
+rwjNC_2016
+```
+
+</br>
+I could have created a function that would pull out the NC data for the three data sets before joining the data, but it is more efficient to perform the join first and then pull out only NC or any other state(s) if interested in analyzing this data for another state or a whole region.  
+</br>
+
+##### Compare columns with same names to check that they have exactly the same data
+```{r}
+ifelse(rwjNC_2016$mentUnhDays.x == rwjNC_2016$mentUnhDays.y, 1, 0)   # print a 1 if the values are equal and 0 otherwise
+ifelse(rwjNC_2016$tBirthRate.x == rwjNC_2016$tBirthRate.y, 1, 0)
+ifelse(rwjNC_2016$perExcDrink.x == rwjNC_2016$perExcDrink.y, 1, 0)
+```
+</br>
+We see that the values are the same and so I will remove the redundant columns.  
+</br>
+
+```{r}
+nc_rwj16 <- rwjNC_2016[ , c(1:6, 8:18, 20, 22:29)]
+head(nc_rwj16, 1)
+```
+
+</br>
+
+##### Convert FIPS column to numeric in order to join with CDC data
+```{r, results='hide'}
+rwjNC_2016.num <- nc_rwj16 %>% mutate_at(1, as.integer)
+```
+
+```{r, echo=FALSE}
+# Display only the headers and first row of data, hide this code
+head(rwjNC_2016.num, 1)
+```
+
+</br>
+
+### Create the final data set
+#### Merge NC CDC and RWJ data
+```{r}
+mort16_nc <- right_join(rwjNC_2016.num, mort_NC, by=c("FIPS"="County Code"))
+head(mort16_nc, 5)
+```
+
+</br>
+Right join again since I want all the data for which FIPS is equal to County Code.  
+</br>
+
+##### Remove " County" from county.y and compare to county.x, also compare Population to population to check that they are the same for CDC and RWJ
+```{r}
+mort16_nc$county.y <- gsub(" County", "", as.character(mort16_nc$county.y))
+
+ifelse(mort16_nc$county.x == mort16_nc$county.y, 1, 0)
+
+ifelse(mort16_nc$Population == mort16_nc$population, 1, 0)
+```
+
+</br>
+We see that the join was successful and that the population data was the same in both the CDC and the RWJ data. Now let's clean up the final data set for use.  
+</br>
+
+##### Remove unnecessary columns and NA row and rename as needed
+```{r}
+mortal_nc16 <- mort16_nc[-101, c(1:26, 29, 31:32)]    # exclude row 101 since it is a row of NA's, exclude redundant columns
+colnames(mortal_nc16)[c(2:4, 6, 20:21, 28:29)] = c("state", "county", "mentUnhDays", "perExcDrink", "perChlamyd", "tBirthRate", "crudeRate", "ageAdjRate")
+mortal_nc16
+```
+
+</br>
+
+#### Perform calculations
+A few of the rate variables are reported for a multiple of the population so I need to divide the percentage by the multiple to obtain the percent of the population that is experiencing the variable in question.
+
+##### First convert columns to numeric
+```{r}
+nc16_num <- mortal_nc16 %>% mutate_at(c(4:29), as.numeric)
+head(nc16_num, 1)
+```
+
+</br>
+
+##### Use functions to perform the needed calculations
+```{r}
+div1 <- function(x){
+  x/1000
+}
+
+div100 <- function(y){
+  y/100000
+}
+
+mortality_nc16 <- nc16_num %>% 
+  mutate_at(c(20, 26), div100) %>%
+    mutate_at(21, div1)
+### used mutate_at() to avoid creating more columns
+#### if this were a professional project I would want to keep the original columns and would use a different mutate function
+
+head(mortality_nc16, 3)
+```
+
+</br>
+
+#### Download/export the data sets
+I can now download the file as a .csv file for use in future R programs and other applications.
+```{r}
+# write.csv(mortality_nc16, "/Users/tamara/Documents/DataProjects/Mortality/nc2016.csv", row.names = FALSE)
+### Commented out since only one file is needed to be downloaded
+```
+
+</br>
+
+##### Convert NA's to 0
+```{r}
+mort_nc16_noNA <- mortality_nc16 %>% mutate_if(is.numeric, ~replace(., is.na(.), 0))
+mort_nc16_noNA
+```
+
+</br>
+I've created a version of the data set where NA's are now 0's because the GeoDa application doesn't handle NA's well so if I need to use that application I will have a data set prepared for it. I can now download the data set as a .csv file.  
+</br>
+
+```{r}
+# write.csv(mort_nc16_noNA, "/Users/tamara/Documents/DataProjects/Mortality/nc2016_noNA.csv", row.names = FALSE)
+```
+
+</br>
+
+#### Next steps
+To continue my analyses, I will perform an exploratory data analysis in the file 2016Mort_explorAna.html.
+
+
+
+
+</br>
+</br>
+</br>
+</br>
+</br>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

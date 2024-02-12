@@ -1,0 +1,434 @@
+---
+title: 'Mortality Analysis for 2016: Models and Tests'
+author: "Tamara Cooper"
+date: "2024-01-22"
+output: 
+  html_document: 
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<style type="text/css">
+.main-container {
+  max-width: 85% !important;
+  margin: auto;
+}
+/* code to make display width full page and dynamic */
+</style>
+
+```{r, eval=FALSE, echo=FALSE}
+# Possible needed packages, don't display this code
+# general use packages
+install.packages("rmarkdown");   
+install.packages("tidyverse");
+install.packages("ggplot2");
+install.packages("RColorBrewer");
+install.packages("kableExtra");
+install.packages("papeR");
+install.packages("epitab");
+install.packages("gplots");
+install.packages("vtable");
+install.packages("corrplot")
+install.packages("sjPlot")
+install.packages("olsrr")
+## spatial regression analysis packages
+install.packages('spdep');
+install.packages('spatialreg');
+install.packages('rgdal');
+install.packages('rgeos');
+install.packages('sfdep');
+install.packages('sp');
+install.packages("foreign");
+install.packages('haven');
+install.packages("raster");
+install.packages("ggspatial");
+```
+
+
+```{r, include=FALSE}
+# Libraries needed, don't display this code
+library(tidyverse)
+library(ggplot2)
+library(RColorBrewer)
+library(MASS)
+library(knitr)
+library(kableExtra)
+library(RColorBrewer)
+library("papeR")
+library(epitab)
+library("gplots")
+myPalette <- brewer.pal(8, "Set2"); 
+library(dplyr)
+library(readxl)
+library(stringr)
+library(vtable)
+library(corrplot)
+library(sjPlot)
+library(sjmisc)
+library(olsrr)
+### Spatial analysis libraries
+library(spdep)
+library(spatialreg)
+library(rgdal)
+library(rgeos)
+library(sf)
+library(sfdep)
+library(sp)
+library(foreign)
+library(ggspatial)
+library(raster)
+
+# Change the presentation of decimal numbers to 4 and avoid scientific notation
+options(prompt="R> ", digits=4, scipen=7)
+```
+
+</br>
+
+### Purpose and Goals
+The purpose of this code is to perform various statistical analyses on the mortality data in the nc2016.csv data set that I prepared in the data aggregation project. (Please see the 2016Mort_dataAggr.html and 2016Mort_explorAna.html files to view the data aggregation and exploratory analysis projects.)  
+My goals for this project are to check independence and variance, perform regression analyses, and test for any interaction effects. I will also check the data for spatial dependence and perform a spatial regression analysis if spatial dependence is found.  
+
+</br>
+
+#### How to read this document
+Before we begin the analyses here is a brief explanation of the layout of this document and what each of the parts are.  
+This page displays code, output, and discussions about the output. The layout is as follows:  
+1. Code is displayed in gray "code boxes"  
+```{r, fig.show='hide'}
+# This is a code box
+x <- c(1,3,2,4,8,4,7)
+y <- c(9,3,1,5,7,2,6)
+plot(x, y, col='#04918a', main="Output of code", type = "p", pch = 19)
+```
+2. Output of the code  
+```{r, echo=FALSE, fig.height=3, fig.width=3}
+x <- c(1,3,2,4,8,4,7)
+y <- c(9,3,1,5,7,2,6)
+plot(x, y, col='#04918a', main=" This is the output of the code", type = "p", pch = 19, cex.main = 1)
+```
+3. Discussion about results/findings  
+
+</br>
+
+### Bring in the data set
+```{r}
+nc2016 <- read.csv("/Users/tamara/Documents/DataProjects/Mortality/nc2016.csv")
+nc2016
+```
+
+</br>
+
+### Multiple Linear Regression Model
+From the exploratory analysis performed in the 2016Mort_explorAna.html file I decided to perform the regression analysis on the following variables:  
+</br>
+ageAdjRate - the age adjusted mortality rate for NC 2016, dependent variable  
+</br>
+Independent variables:  
+mentUnhDays - poor mental health days  
+perAccToExer - percent with access to exercise opportunities  
+perExcDrink - percent excessive drinking  
+perUnemploy - unemployment Rate  
+perChlamyd - percent Chlamydia cases  
+tBirthRate - teen births rate   
+vioCrimeRate - violent crime rate  
+perInsSleep - percent insufficient sleep  
+</br>
+
+#### Model 1
+```{r}
+mod <- lm(ageAdjRate ~ mentUnhDays + perAccToExer + perExcDrink + tBirthRate + vioCrimeRate + perInsSleep + perChlamyd + perUnemploy, data = nc2016)
+summary(mod)
+```
+
+</br>
+From the model we see that the perAccToExer and tBirthRate variables are significant at the &alpha; = 0.05 and &alpha; = 0.001 levels, respectively. We also see that the vioCrimeRate variable is significant at the &alpha; = 0.1 level. Next I will perform some residual diagnostics to check that the model doesn't violate the normality, linearity, and homoscedasticity assumptions.  
+</br>
+
+##### Model 1 - Residual Diagnostics
+```{r}
+mod_res <- mod$residuals
+
+# Histogram of residuals
+hist(mod_res, main = "Histogram of Residuals", col = "cyan", xlab="Residuals")
+
+# Normal Q-Q plot
+qqnorm(mod_res)
+qqline(mod_res, col = "magenta", lwd = 2)
+
+# Residuals vs. fitted values
+plot(fitted(mod), mod_res, title("Residual vs. Fitted Values"), xlab="Fitted Values", ylab="Residuals", col="blue")
+abline(0, 0, col="darkorange", lwd = 2)
+```
+</br>
+From the histogram of the model residuals we see that the residuals follow a normal distribution and the normality assumption is not violated.  
+The Normal Q-Q Plot shows us that the data are normally distributed and thus the normality assumption is not violated.  
+And from the plot of the residuals vs. the fitted values we see that the residuals are randomly distributed around the 0 line, showing us that the relationship is linear. We see homogeneity of error variance since the residuals form an approximately horizontal band about the 0 line, thus the homoscedasticity assumption is not violated. Finally, we see the possibility of a couple of outliers at y = 2 and y = -2 but since they are not extremely far from the random pattern we may only take note of them at this time.  
+</br>
+
+#### Model 2
+I now run a model with only the variables that were found to be significant in Model 1.  
+```{r}
+mod_2 <- lm(ageAdjRate ~ perAccToExer + tBirthRate + vioCrimeRate, data = nc2016)
+summary(mod_2)
+```
+
+</br>
+In Model 2 we see that all the variables are significant at the &alpha; = 0.05 level and below, with tBirthRate being the most highly significant.  
+The adjusted R-squared value for this model is 0.49 which is slightly higher than the adjusted R-squared value of Model 1, 0.484, so we see that Model 2 is better (very slightly better).
+</br>
+
+##### Model 2 - Residual Diagnostics
+```{r}
+# Histogram of residuals
+ols_plot_resid_hist(mod_2)
+
+# Normal Q-Q plot
+ols_plot_resid_qq(mod_2)
+
+# Residuals vs. fitted values
+ols_plot_resid_fit(mod_2)
+```
+
+</br>
+For the residual diagnostics of Model 2 I applied the oslrr package to create the same plots I created for Model 1. From the above plots we see that the linearity, normality, and homoscedasticity assumptions are met.
+</br>
+
+### Check for interaction effects
+```{r}
+mod_3 <- lm(ageAdjRate ~ (perAccToExer + tBirthRate + vioCrimeRate)^2, data = nc2016)
+summary(mod_3)
+```
+
+</br>
+Using only the variables from Model 2 I've checked for any interaction effects. We see that the only possible interaction effect comes from tBirthRate:vioCrimeRate with a significance level of &alpha; = 0.1. None of the other variables are significant in this model so I will run a forth model that includes only the tBirthRate:vioCrimeRate interaction.  
+</br>
+
+```{r}
+mod_4 <- lm(ageAdjRate ~ perAccToExer + tBirthRate + vioCrimeRate + tBirthRate*vioCrimeRate, data = nc2016)
+summary(mod_4)
+```
+
+</br>
+With Model 4 we see that perAccToExer and tBirthRate have some significance and the adjusted R-squared is 0.496 which is better than Model 2 (again only slightly better).  
+</br>
+Next I will check for spatial dependence.  
+</br>
+
+
+### Moran's I test for spatial dependence
+#### Bring in the spatial data
+I created the spatial data files in QGIS by joining the above data file to the 2016 TIGER/Line NHGIS data that I collected from IPUMS NHGIS https://www.nhgis.org/.
+```{r echo=FALSE, warning=FALSE}
+spat.dat <- readOGR(dsn = "/Users/tamara/Documents/DataProjects/Mortality/SpatialData", layer = "nc_mort16_spat")
+names(spat.dat)   # Display the column names
+```
+</br>
+
+#### Bring in only the shape file
+```{r}
+shapeFile <- st_read("/Users/tamara/Documents/DataProjects/Mortality/SpatialData/nc_mort16_spat.shp")   ### bring in the shape file
+# names(shapeFile)   ### list the column names
+```
+
+</br>
+
+#### Define neighboring polygons and assign weights
+```{r}
+nb <- poly2nb(shapeFile, queen = TRUE)  ### define the neighboring polygons based on the queen case
+nb
+lw <- nb2listw(nb, style = "W", zero.policy = TRUE)  ### assign weights
+```
+
+</br>
+
+#### Create a scatter plot between age adjusted mortality rate values and their lagged counterparts
+Just for fun here's a scatter plot of the rate values with the lagged values
+```{r}
+mort_lag <- lag.listw(lw, shapeFile$ageAdjRate)
+# mort_lag   ### Lagged values
+
+plot(mort_lag ~ shapeFile$ageAdjRate)
+mort_line <- lm(mort_lag ~ shapeFile$ageAdjRate)
+abline(mort_line, col="#5A01B3")
+```
+
+</br>
+
+##### Compute the slope of the line
+```{r}
+### compute the slope of the line which is the Moran's I coefficient
+coef(mort_line)[2]
+```
+
+</br>
+The computed slope of the model is the Moran's I coefficient.  
+</br>
+
+##### Compute the Moran's I statistic
+```{r}
+### compute Moran's I statistic
+mI_stat <- moran(shapeFile$ageAdjRate, lw, length(nb), Szero(lw))[1]
+mI_stat
+```
+
+</br>
+Note that the Moran's I statistic is equal to the computed slope of the model.  
+</br>
+
+#### Moran's I hypothesis test
+We will test the following hypothesis:  
+H_0: The age adjusted mortality rate values are randomly distributed across counties following a completely random process.  
+H_1: The age adjusted mortality rate values are not randomly distributed across counties.  
+</br>
+We will test this at the &alpha; = 0.05 level.  
+
+##### Moran's I test - Analytical Method
+```{r}
+### Moran's I hypothesis test
+moran.test(shapeFile$ageAdjRate, lw, alternative = "greater")
+```
+
+</br>
+We see that the p-value = 0.002 < &alpha; = 0.05 so we reject the null hypothesis and concluded that there is spatial dependence.  
+The analytical method may be sensitive to irregularly distributed polygons and a safer method is the Monte Carlo simulation seen below.  
+</br>
+
+##### Moran's I test - Monte Carlo Method
+```{r}
+### Moran's I hypothesis test using the Monte Carlo method
+mc <- moran.mc(shapeFile$ageAdjRate, lw, nsim = 9999, alternative = "greater")
+mc
+```
+
+</br>
+With the Monte Carlo approach we see that the p-value = 0.003 < &alpha; = 0.05 so we reject the null hypothesis and concluded that there is spatial dependence.  
+</br>
+
+#### Plot the Density of Permutation Outcomes
+```{r}
+### density plot of the null distribution
+plot(mc)
+```
+
+</br>
+In the density plot of permutation outcomes is a graphical representation of the Monte Carlo method. The curve shows the distribution of Moran I values we could expect if the age adjusted mortality rate were randomly distributed across the counties. Note that the observed statistic, 0.1781, falls in the right tail of the distribution suggesting that the mortality rate values are clustered. A negative Moran's I value would suggest dispersion.  
+</br>
+
+#### Map the 2016 Age Adjusted Mortality Rate
+```{r, echo=FALSE}
+# graphing with ggplot is easier and includes more customization so I will not use the following graphing code
+## spplot(spat.dat, "Deaths")  # create a map of the counts of Deaths
+### spplot(spat.dat, "ageAdjRate")   # create a map of the age adjusted mortality rate
+
+### Code to bring in a .png image created from the above spplot code
+#  knitr::include_graphics("/Users/tamara/Documents/DataProjects/Mortality/ageAdjustedRate_map.png")
+# not using since the following ggplot code is superior
+```
+
+```{r, fig.width=10}
+nc_shp <- read_sf("/Users/tamara/Documents/DataProjects/Mortality/SpatialData/nc_mort16_spat.shp")
+ggplot(data = nc_shp) + geom_sf(aes(fill = ageAdjRate)) +
+  scale_fill_viridis_c(option = "plasma", trans = "sqrt") +
+  coord_sf(crs = st_crs(4326)) +
+  ggtitle(label = "2016 Age Adjusted Mortality Rate", subtitle = "North Carolina")
+```
+
+</br>
+Dark blue counties have a lower mortality rate and yellow counties have the highest mortality rates in this data.  
+</br>
+
+#### Spatial Regression Analyses
+Since we found spatial dependence in the data I will run a spatial regression analysis on Model 4.  
+</br>
+
+##### SLX Spatially Lagged X
+```{r, warning=FALSE}
+m4 <- ageAdjRate ~ perAccToEx + tBirthRate + vioCrimeRa + tBirthRate*vioCrimeRa
+mod_lagX <- lmSLX(m4, data = spat.dat, listw = lw)
+summary(mod_lagX)
+```
+
+</br>
+We see with this model that perAccToEx and tBirthRate are significant variables at the &alpha; = 0.01 and $alpha; = 0.05 levels, respectively.  
+</br>
+
+##### SAR Spatial Lag Model
+```{r, warning=FALSE}
+mod_lag <- lagsarlm(m4, data = spat.dat, listw = lw)
+summary(mod_lag)
+```
+
+</br>
+We see with this model that perAccToEx and tBirthRate are significant variables at the &alpha; = 0.05 level.  
+</br>
+
+##### SEM Spatial Error Model
+```{r, warning=FALSE}
+mod_spat <- errorsarlm(m4, data = spat.dat, listw = lw)
+summary(mod_spat)
+```
+
+</br>
+We see with this model that perAccToEx and tBirthRate are significant variables at the &alpha; = 0.01 level.  
+The Lambda value is the coefficient for the spatial error term, it reflects unobserved similarities in neighboring counties, here the p-value for Lambda is 0.026 < 0.05 and thus is significant at the &alpha; = 0.05 level.  
+</br>
+
+##### SDEM Spatial Durbin Error Model
+```{r, warning=FALSE}
+mod_spat <- errorsarlm(m4, data = spat.dat, listw = lw, etype = "emixed")
+summary(mod_spat)
+```
+
+</br>
+We see with this model that perAccToEx and tBirthRate are significant variables at the &alpha; = 0.01 and &alpha; = 0.05 levels, respectively.  
+The p-value for Lambda is approximately 0.05 < 0.1 and thus is significant at the &alpha; = 0.1 level.  
+</br>
+
+#### Conclusion
+From the above analysis we found an association between the age adjusted mortality rate and access to exercise and the age adjusted mortality rate and teen birth rates in North Carolina in the year 2016.
+
+
+
+</br>
+</br>
+</br>
+</br>
+</br>
+</br>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
