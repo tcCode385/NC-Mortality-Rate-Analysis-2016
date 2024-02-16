@@ -344,25 +344,53 @@ Dark blue counties have a lower mortality rate and yellow counties have the high
 Since we found spatial dependence in the data I will run a spatial regression analysis on Model 4.  
 </br>
 
+
+#### Lagrange Multiplier Tests
+```{r}
+m4 <- ageAdjRate ~ perAccToEx + tBirthRate + vioCrimeRa + tBirthRate*vioCrimeRa
+# lm.morantest(lm(m4, data = spat.dat), listw = lw)   ## another Moran's test
+lm.LMtests(lm(m4, data = spat.dat), listw = lw, test = "all")
+```
+
+</br>
+The Lagrange multiplier tests are another way to determine if there is spatial dependence. From the p-value results of the above tests we see that only in the case of LMerr do we reject the null hypothesis at &alpha; = 0.05 and so we should use a spatial error model.  
+</br>
+I will run four spatial regression models to demonstrate them but note that the above Lagrange multiplier test only found that our model could be improved with a spatial error model, SEM model.  
+</br>
+
 ##### SLX Spatially Lagged X
 ```{r, warning=FALSE}
-m4 <- ageAdjRate ~ perAccToEx + tBirthRate + vioCrimeRa + tBirthRate*vioCrimeRa
 mod_lagX <- lmSLX(m4, data = spat.dat, listw = lw)
 summary(mod_lagX)
+summary(impacts(mod_lagX, listw = lw, R = 500), zstats = TRUE)
 ```
 
 </br>
-We see with this model that perAccToEx and tBirthRate are significant variables at the &alpha; = 0.01 and $alpha; = 0.05 levels, respectively.  
+The SLX Spatially Lagged X model, y = X&beta; + WX&theta; + &epsilon;, includes the average values of neighboring counties' percent access to exercise, teen birth rate, violent crime rate, teen birth rate and violent crime rate interaction. This is a Local Spatial Model.    
+We see with this model that perAccToEx and tBirthRate are significant variables at the &alpha; = 0.01 and &alpha; = 0.05 levels, respectively.  
+Compared to the OLS Model 4, ageAdjRate = perAccToExer + tBirthRate + vioCrimeRate + tBirthRate*vioCrimeRate, we see that the Intercept, perAccToEx, and tBirthRate are significant at the same level in both models but the adjusted R-squared of the OLS Model 4 is slightly better at 0.496.  
+The impacts(.) function shows us the total affects, where in the SLX model we see the direct affect from the X values and the indirect affect from the lagged X values. From the p-values printed out from the impacts(.) function we see that the total affects are not significant.  
 </br>
 
-##### SAR Spatial Lag Model
+
+##### Spatial Autoregressive (SAR) - Spatial Lag Model
 ```{r, warning=FALSE}
-mod_lag <- lagsarlm(m4, data = spat.dat, listw = lw)
+spat.dat_2 <- readOGR(dsn = "/Users/tamara/Documents/DataProjects/Mortality/SpatDat_noNA", layer = "nc_mort16_spat_noNA")  ## bring in no NA spatial files
+
+shp <- st_read("/Users/tamara/Documents/DataProjects/Mortality/SpatDat_noNA/nc_mort16_spat_noNA.shp")   ### bring in the shape file, data without NA's
+nb_2 <- poly2nb(shp, queen = TRUE)  ### define the neighboring polygons based on the queen case
+lw_2 <- nb2listw(nb_2, style = "W", zero.policy = TRUE)  ### assign weights
+
+mod_lag <- lagsarlm(m4, data = spat.dat_2, lw_2)
 summary(mod_lag)
+summary(impacts(mod_lag, listw = lw_2, R = 500), zstats = TRUE)
 ```
 
 </br>
-We see with this model that perAccToEx and tBirthRate are significant variables at the &alpha; = 0.05 level.  
+In the SAR model, y = &rho;Wy + X&beta; + &epsilon;, spatially lagged y values are included, meaning that values of age adjusted mortality rates of neighboring counties are included in the model. This is a Global Spatial Model.  
+We see with this model that perAccToEx and tBirthRate are significant variables at the &alpha; = 0.05 level. The p-value for Rho, the spatially lagged y multiplier, is 0.10597 and is not significant at the &alpha; = 0.05 level.   
+Compared to the OLS Model 4 we see that the perAccToEx is not quite as significant in the SAR model.  
+In order to run the impacts(.) function for this model I needed the spatial data without NA's so I created the spatial data files in QGIS using the nc2016_noNA.csv file. From the p-values printed out from the impacts(.) function we see that the total affects for tBirthRate are significant at the &alpha; = 0.01 level and the total affects for perAccToEx are significant at the &alpha; = 0.1 level.  
 </br>
 
 ##### SEM Spatial Error Model
@@ -372,8 +400,27 @@ summary(mod_spat)
 ```
 
 </br>
+In the SEM model, y = X&beta; + u with u = &lambda;u + &epsilon;, a residual (unexplained) value is included in the model.  This is a Global Spatial Model.  
 We see with this model that perAccToEx and tBirthRate are significant variables at the &alpha; = 0.01 level.  
 The Lambda value is the coefficient for the spatial error term, it reflects unobserved similarities in neighboring counties, here the p-value for Lambda is 0.026 < 0.05 and thus is significant at the &alpha; = 0.05 level.  
+Compared to the OLS Model 4 we see that the tBirthRate is more significant in the SEM model.  
+</br>
+
+
+##### Spatial Hausman Test
+We will test the following hypothesis:  
+H_0: There is no difference in the values generated from the two models (OLS and SEM).  
+H_1: There is a difference in the values generated from the two models (OLS and SEM).  
+</br>
+We will test this at the &alpha; = 0.05 level.  
+
+```{r}
+Hausman.test(mod_spat)
+```
+
+</br>
+p-value is greater than &alpha; = 0.05 so we fail to reject the null hypothesis and we conclude that the spatial error model may be appropriate.  
+Note: While performing multiple runs of this test I got p-value = 0.3 and p-value = 1. A p-value = 1 is suspicious and leads me to believe that something has gone wrong in this test, but since this is only a fun project displaying various methods I will not dig further into this concern at this time.  
 </br>
 
 ##### SDEM Spatial Durbin Error Model
@@ -383,12 +430,17 @@ summary(mod_spat)
 ```
 
 </br>
+The Spatial Durbin Error Model, y = X&beta; + WX&theta; + u where u = &lambda;Wu + &epsilon;, is the Spatial Error Model (SEM) with lagged X values.  
 We see with this model that perAccToEx and tBirthRate are significant variables at the &alpha; = 0.01 and &alpha; = 0.05 levels, respectively.  
 The p-value for Lambda is approximately 0.05 < 0.1 and thus is significant at the &alpha; = 0.1 level.  
 </br>
 
 #### Conclusion
-From the above analysis we found an association between the age adjusted mortality rate and access to exercise and the age adjusted mortality rate and teen birth rates in North Carolina in the year 2016.
+From the above analysis we found a statistically significant negative relationship between the age adjusted mortality rate and access to exercise and a statistically significant positive relationship between age adjusted mortality rate and teen birth rates in North Carolina in the year 2016.  
+</br>
+I'd like to give a shout out to Dr. Mark L. Burkey and his BurkeyAcademy's GIS & Spatial Econometrics Project 2017-2018 REBOOT! course, https://spatial.burkeyacademy.com/. Dr. Burkey's free online Spatial Econometrics course was instrumental in my learning spatial regression analysis.  
+</br>
+Burkey, Mark L. A Short Course on Spatial Econometrics and GIS. REGION, 5(3), 2018, R13-R18. https://doi.org/10.18335/region.v5i3.254
 
 
 
