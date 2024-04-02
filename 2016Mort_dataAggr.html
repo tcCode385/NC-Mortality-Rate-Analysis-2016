@@ -1676,7 +1676,7 @@ File 1999-2016 Series 20 No. 2U, 2016, as compiled from data provided by
 the 57 vital statistics jurisdictions through the Vital Statistics
 Cooperative Program. Accessed at <a href="http://wonder.cdc.gov/cmf-icd10.html" class="uri">http://wonder.cdc.gov/cmf-icd10.html</a> on Jan 12, 2024
 1:44:22 PM.</p>
-<pre class="r"><code>cdcMort_dat &lt;- data.table::fread(&quot;/Users/tamara/Documents/DataProjects/Mortality/CompressedMortality2016.txt&quot;, drop = 1)
+<pre class="r"><code>cdcMort_dat &lt;- data.table::fread(&quot;./sourceData/CompressedMortality2016.txt&quot;, drop = 1)
 cdcMort_dat</code></pre>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
@@ -1745,8 +1745,8 @@ presented in the County Health Rankings &amp; Roadmaps spreadsheets. For
 more information on exact sources, download the .xls files presented in
 the following code.)</p>
 <pre class="r"><code># 2018 spreadsheets
-rwj2018_rmd &lt;- read_excel(&quot;/Users/tamara/Documents/DataProjects/Mortality/2018 County Health Rankings Data - v2.xls&quot;, sheet = &quot;Ranked Measure Data&quot;)       # only the Ranked Measure Data sheet
-rwj2018_amd &lt;- read_excel(&quot;/Users/tamara/Documents/DataProjects/Mortality/2018 County Health Rankings Data - v2.xls&quot;, sheet = &quot;Additional Measure Data&quot;)   # only the Additional Measure Data sheet
+rwj2018_rmd &lt;- read_excel(&quot;./sourceData/2018 County Health Rankings Data - v2.xls&quot;, sheet = &quot;Ranked Measure Data&quot;)       # only the Ranked Measure Data sheet
+rwj2018_amd &lt;- read_excel(&quot;./sourceData/2018 County Health Rankings Data - v2.xls&quot;, sheet = &quot;Additional Measure Data&quot;)   # only the Additional Measure Data sheet
 head(rwj2018_rmd, 10)</code></pre>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
@@ -1760,7 +1760,7 @@ head(rwj2018_rmd, 10)</code></pre>
   </script>
 </div>
 <pre class="r"><code># 2019 spreedsheet
-rwj2019_rmd &lt;- read_excel(&quot;/Users/tamara/Documents/DataProjects/Mortality/2018 County Health Rankings Data - v2.xls&quot;, sheet = &quot;Ranked Measure Data&quot;)       # only the Ranked Measure Data sheet
+rwj2019_rmd &lt;- read_excel(&quot;./sourceData/2018 County Health Rankings Data - v2.xls&quot;, sheet = &quot;Ranked Measure Data&quot;)       # only the Ranked Measure Data sheet
 head(rwj2019_rmd, 10)</code></pre>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
@@ -2015,7 +2015,7 @@ head(mortality_nc16, 3)</code></pre>
 <h4>Download/export the data sets</h4>
 <p>I can now download the file as a .csv file for use in future R
 programs and other applications.</p>
-<pre class="r"><code># write.csv(mortality_nc16, &quot;/Users/tamara/Documents/DataProjects/Mortality/nc2016.csv&quot;, row.names = FALSE)
+<pre class="r"><code># write.csv(mortality_nc16, &quot;./output/nc2016.csv&quot;, row.names = FALSE)
 ### Commented out since only one file is needed to be downloaded</code></pre>
 <p></br></p>
 <div id="convert-nas-to-0" class="section level5">
@@ -2032,7 +2032,7 @@ because the GeoDa application doesn’t handle NA’s well so if I need to
 use that application I will have a data set prepared for it. I can now
 download the data set as a .csv file.<br />
 </br></p>
-<pre class="r"><code># write.csv(mort_nc16_noNA, &quot;/Users/tamara/Documents/DataProjects/Mortality/nc2016_noNA.csv&quot;, row.names = FALSE)</code></pre>
+<pre class="r"><code>#  write.csv(mort_nc16_noNA, &quot;./output/nc2016_noNA.csv&quot;, row.names = FALSE)</code></pre>
 <p></br></p>
 </div>
 </div>

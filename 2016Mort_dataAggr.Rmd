@@ -101,7 +101,7 @@ plot(x, y, col='#04918a', main=" This is the output of the code", type = "p", pc
 #### Bring in CDC Wonder Mortality data
 Data collected via: Centers for Disease Control and Prevention, National Center for Health Statistics. National Vital Statistics System, Mortality: Compressed Mortality File 1999-2016 on CDC WONDER Online Database, released June 2017. Data are from the Compressed Mortality File 1999-2016 Series 20 No. 2U, 2016, as compiled from data provided by the 57 vital statistics jurisdictions through the Vital Statistics Cooperative Program. Accessed at http://wonder.cdc.gov/cmf-icd10.html on Jan 12, 2024 1:44:22 PM.  
 ```{r}
-cdcMort_dat <- data.table::fread("/Users/tamara/Documents/DataProjects/Mortality/CompressedMortality2016.txt", drop = 1)
+cdcMort_dat <- data.table::fread("./sourceData/CompressedMortality2016.txt", drop = 1)
 cdcMort_dat
 dim(cdcMort_dat)
 ```
@@ -138,13 +138,13 @@ Data collected via: Robert Wood Johnson Foundation, County Health Rankings & Roa
 (Note: these data where collected from various different sources and presented in the County Health Rankings & Roadmaps spreadsheets. For more information on exact sources, download the .xls files presented in the following code.)
 ```{r, message=FALSE}
 # 2018 spreadsheets
-rwj2018_rmd <- read_excel("/Users/tamara/Documents/DataProjects/Mortality/2018 County Health Rankings Data - v2.xls", sheet = "Ranked Measure Data")       # only the Ranked Measure Data sheet
-rwj2018_amd <- read_excel("/Users/tamara/Documents/DataProjects/Mortality/2018 County Health Rankings Data - v2.xls", sheet = "Additional Measure Data")   # only the Additional Measure Data sheet
+rwj2018_rmd <- read_excel("./sourceData/2018 County Health Rankings Data - v2.xls", sheet = "Ranked Measure Data")       # only the Ranked Measure Data sheet
+rwj2018_amd <- read_excel("./sourceData/2018 County Health Rankings Data - v2.xls", sheet = "Additional Measure Data")   # only the Additional Measure Data sheet
 head(rwj2018_rmd, 10)
 head(rwj2018_amd, 10)
 
 # 2019 spreedsheet
-rwj2019_rmd <- read_excel("/Users/tamara/Documents/DataProjects/Mortality/2018 County Health Rankings Data - v2.xls", sheet = "Ranked Measure Data")       # only the Ranked Measure Data sheet
+rwj2019_rmd <- read_excel("./sourceData/2018 County Health Rankings Data - v2.xls", sheet = "Ranked Measure Data")       # only the Ranked Measure Data sheet
 head(rwj2019_rmd, 10)
 ```
 </br>
@@ -313,7 +313,7 @@ head(mortality_nc16, 3)
 #### Download/export the data sets
 I can now download the file as a .csv file for use in future R programs and other applications.
 ```{r}
-# write.csv(mortality_nc16, "/Users/tamara/Documents/DataProjects/Mortality/nc2016.csv", row.names = FALSE)
+# write.csv(mortality_nc16, "./output/nc2016.csv", row.names = FALSE)
 ### Commented out since only one file is needed to be downloaded
 ```
 
@@ -330,7 +330,7 @@ I've created a version of the data set where NA's are now 0's because the GeoDa 
 </br>
 
 ```{r}
-# write.csv(mort_nc16_noNA, "/Users/tamara/Documents/DataProjects/Mortality/nc2016_noNA.csv", row.names = FALSE)
+#  write.csv(mort_nc16_noNA, "./output/nc2016_noNA.csv", row.names = FALSE)
 ```
 
 </br>
@@ -346,7 +346,6 @@ To continue my analyses, I will perform an exploratory data analysis in the file
 </br>
 </br>
 </br>
-
 
 
 
