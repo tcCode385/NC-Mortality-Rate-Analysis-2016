@@ -115,7 +115,7 @@ plot(x, y, col='#04918a', main=" This is the output of the code", type = "p", pc
 
 ### Bring in the data set
 ```{r}
-nc2016 <- read.csv("/Users/tamara/Documents/DataProjects/Mortality/nc2016.csv")
+nc2016 <- read.csv("./output/nc2016.csv")
 nc2016
 ```
 
@@ -222,14 +222,14 @@ Next I will check for spatial dependence.
 #### Bring in the spatial data
 I created the spatial data files in QGIS by joining the above data file to the 2016 TIGER/Line NHGIS data that I collected from IPUMS NHGIS https://www.nhgis.org/.
 ```{r echo=FALSE, warning=FALSE}
-spat.dat <- readOGR(dsn = "/Users/tamara/Documents/DataProjects/Mortality/SpatialData", layer = "nc_mort16_spat")
+spat.dat <- readOGR(dsn = "./SpatialData", layer = "nc_mort16_spat")
 names(spat.dat)   # Display the column names
 ```
 </br>
 
 #### Bring in only the shape file
 ```{r}
-shapeFile <- st_read("/Users/tamara/Documents/DataProjects/Mortality/SpatialData/nc_mort16_spat.shp")   ### bring in the shape file
+shapeFile <- st_read("./SpatialData/nc_mort16_spat.shp")   ### bring in the shape file
 # names(shapeFile)   ### list the column names
 ```
 
@@ -329,7 +329,7 @@ In the density plot of permutation outcomes is a graphical representation of the
 ```
 
 ```{r, fig.width=10}
-nc_shp <- read_sf("/Users/tamara/Documents/DataProjects/Mortality/SpatialData/nc_mort16_spat.shp")
+nc_shp <- read_sf("./SpatialData/nc_mort16_spat.shp")
 ggplot(data = nc_shp) + geom_sf(aes(fill = ageAdjRate)) +
   scale_fill_viridis_c(option = "plasma", trans = "sqrt") +
   coord_sf(crs = st_crs(4326)) +
@@ -375,9 +375,9 @@ The impacts(.) function shows us the total affects, where in the SLX model we se
 
 ##### Spatial Autoregressive (SAR) - Spatial Lag Model
 ```{r, warning=FALSE}
-spat.dat_2 <- readOGR(dsn = "/Users/tamara/Documents/DataProjects/Mortality/SpatDat_noNA", layer = "nc_mort16_spat_noNA")  ## bring in no NA spatial files
+spat.dat_2 <- readOGR(dsn = "./SpatDat_noNA", layer = "nc_mort16_spat_noNA")  ## bring in no NA spatial files
 
-shp <- st_read("/Users/tamara/Documents/DataProjects/Mortality/SpatDat_noNA/nc_mort16_spat_noNA.shp")   ### bring in the shape file, data without NA's
+shp <- st_read("./SpatDat_noNA/nc_mort16_spat_noNA.shp")   ### bring in the shape file, data without NA's
 nb_2 <- poly2nb(shp, queen = TRUE)  ### define the neighboring polygons based on the queen case
 lw_2 <- nb2listw(nb_2, style = "W", zero.policy = TRUE)  ### assign weights
 
