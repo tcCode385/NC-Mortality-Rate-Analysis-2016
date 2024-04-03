@@ -111,7 +111,7 @@ plot(x, y, col='#04918a', main=" This is the output of the code", type = "p", pc
 
 ### Bring in the data set
 ```{r}
-nc2016 <- read.csv("/Users/tamara/Documents/DataProjects/Mortality/nc2016.csv")
+nc2016 <- read.csv("./output/nc2016.csv")
 nc2016
 ```
 
